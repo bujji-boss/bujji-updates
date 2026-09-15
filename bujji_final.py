@@ -18,7 +18,7 @@ def speak(text):
 
     print("🤖 BUJJI:", text, flush=True)
 
-    subprocess.run(
+    subprocess.Popen(
         [
             "termux-tts-speak",
             "-e", "com.google.android.tts",
@@ -98,50 +98,74 @@ def detect_bujji():
 
 def listen_command():
     try:
-        r = subprocess.run(
-            ["termux-speech-to-text"],
-            capture_output=True,
+        cmd = [
+            "/data/data/com.termux/files/usr/libexec/termux-api",
+            "SpeechToText"
+        ]
+
+        p = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
             text=True,
-            timeout=15
+            bufsize=1
         )
 
-        text = r.stdout.strip().lower()
+        latest = ""
 
-        print("👤 BOSS VOICE:", text)
+        for line in p.stdout:
+            text = line.strip().lower()
 
-        text = text.replace("hey bujji", "", 1).strip()
-        text = text.replace("hey booji", "", 1).strip()
-        text = text.replace("hey budgie", "", 1).strip()
-        text = text.replace("bujji", "", 1).strip()
+            if not text:
+                continue
 
-        if text:
-            print("👤 BOSS:", text)
+            print("👤 BOSS VOICE:", text, flush=True)
 
-        return text
+            text = text.replace("hey bujji", "", 1).strip()
+            text = text.replace("hey booji", "", 1).strip()
+            text = text.replace("hey budgie", "", 1).strip()
+            text = text.replace("bujji", "", 1).strip()
 
-    except:
+            if not text:
+                continue
+
+            latest = text
+            print("👤 BOSS:", text, flush=True)
+
+            # ⚡ Partial-result fast path
+            action_words = [
+                "open", "launch", "start", "close",
+                "whatsapp", "instagram", "phonepe",
+                "youtube", "free fire", "chatgpt",
+                "ludo", "snapchat", "meesho", "docs"
+            ]
+
+            app_words = [
+                "whatsapp", "instagram", "phonepe", "youtube",
+                "free fire", "chatgpt", "ludo", "snapchat",
+                "meesho", "docs"
+            ]
+            action_verbs = ["open", "launch", "start", "close"]
+
+            has_app = any(app in text for app in app_words)
+            has_action = any(verb in text.split() for verb in action_verbs)
+
+            if has_app and has_action:
+                try:
+                    p.terminate()
+                except:
+                    pass
+                return text
+
+        return latest
+
+    except Exception as e:
+        print("⚠️ STT ERROR:", e, flush=True)
         return ""
 
-
 def open_app(package):
-    activities = {
-        "com.whatsapp": "com.whatsapp/.Main",
-        "com.instagram.android":
-            "com.instagram.android/.activity.MainTabActivity",
-        "com.phonepe.app":
-            "com.phonepe.app/.ui.activity.Navigator_MainActivity"
-    }
-
-    component = activities.get(package)
-
-    if component:
-        subprocess.run(
-            ["am", "start", "-n", component],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-    else:
-        subprocess.run(
+    try:
+        subprocess.Popen(
             [
                 "am", "start",
                 "-a", "android.intent.action.MAIN",
@@ -151,104 +175,35 @@ def open_app(package):
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
+        return True
+    except Exception as e:
+        print("⚠️ APP OPEN ERROR:", e, flush=True)
+        return False
 
 
-def ask_ai(command):
-    if not command or not os.path.exists(MODEL):
-        return "Boss, నాకు అర్థం కాలేదు."
+def normalize_command(text):
+    if not text:
+        return ""
 
-    prompt = f"""
-You are BUJJI, Boss's personal AI assistant.
-
-Rules:
-1. Reply only in simple natural Telugu.
-2. Call the user Boss.
-3. Keep replies short.
-4. Do not use unnecessary English.
-5. Do not invent actions that you cannot perform.
-
-User command:
-{command}
-
-BUJJI:
-"""
-
-    try:
-        r = subprocess.run(
-            [
-                "llama-cli",
-                "-m", MODEL,
-                "-p", prompt,
-                "-n", "60",
-                "-st"
-            ],
-            capture_output=True,
-            text=True,
-            timeout=45
-        )
-
-        output = r.stdout.strip()
-
-        if "BUJJI:" in output:
-            output = output.split("BUJJI:", 1)[1]
-
-        output = re.split(
-            r"\[ Prompt:|\[ Generation:|Exiting\.\.\.",
-            output,
-            maxsplit=1
-        )[0].strip()
-
-        output = output.replace("<end_of_turn>", "").strip()
-
-        if not output:
-            return "Boss, చెప్పండి."
-
-        return output
-
-    except:
-        return "Boss, AI brain ప్రస్తుతం స్పందించలేదు."
-
-
-def normalize_command(command):
-    command = command.lower().strip()
+    text = text.lower().strip()
 
     replacements = {
-        "వాట్సాప్": "whatsapp",
-        "వాట్సప్": "whatsapp",
-        "వాట్సాప్ ఓపెన్": "open whatsapp",
-        "వాట్సాప్ ఓపెన్ చెయ్యి": "open whatsapp",
-        "వాట్సప్ ఓపెన్": "open whatsapp",
-
-        "ఇన్స్టాగ్రామ్": "instagram",
-        "ఇన్‌స్టాగ్రామ్": "instagram",
-
-        "ఫోన్ పే": "phonepe",
-        "ఫోన్‌పే": "phonepe",
         "phone per": "phonepe",
         "phone pay": "phonepe",
         "phone pe": "phonepe",
-
-        "యూట్యూబ్": "youtube",
-        "యూట్యూబు": "youtube",
-
-        "చాట్ జిపిటి": "chatgpt",
-        "చాట్‌జిపిటి": "chatgpt",
-
-        "ఫ్రీ ఫైర్": "free fire",
-        "లూడో": "ludo",
-        "స్నాప్‌చాట్": "snapchat",
-        "స్నాప్ చాట్": "snapchat",
-        "మీషో": "meesho",
-        "డాక్స్": "docs"
+        "phone per": "phonepe",
+        "ఫోన్ పే": "phonepe",
+        "ఫోన్‌పే": "phonepe",
+        "వాట్సాప్": "whatsapp",
+        "వాట్సప్": "whatsapp",
+        "ఇన్స్టాగ్రామ్": "instagram",
+        "యూట్యూబ్": "youtube"
     }
 
-    for telugu, english in replacements.items():
-        if telugu in command:
-            command = command.replace(telugu, english)
+    for old, new in replacements.items():
+        text = text.replace(old, new)
 
-    command = re.sub(r"\s+", " ", command).strip()
-
-    return command
+    return text.strip()
 
 
 def handle_command(command):
@@ -355,9 +310,8 @@ def main():
     print("================================")
     print("")
 
-    subprocess.run(["termux-tts-speak", "-e", "com.google.android.tts", "-s", "ALARM", "-r", "1.3", ""], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print("🤖 BUJJI: BUJJI online Boss", flush=True)
-    subprocess.run(["termux-tts-speak", "-e", "com.google.android.tts", "-s", "ALARM", "-r", "1.3", "BUJJI online Boss"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    speak("BUJJI online Boss")
 
     while True:
         try:
