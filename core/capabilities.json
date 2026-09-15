@@ -1,0 +1,14 @@
+{
+  "version": "2.0.0",
+  "assistant": "BUJJI",
+  "capabilities": [
+    "voice_control",
+    "app_control",
+    "ai_chat",
+    "youtube",
+    "whatsapp",
+    "instagram",
+    "phonepe",
+    "self_update"
+  ]
+}

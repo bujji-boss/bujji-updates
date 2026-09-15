@@ -2,10 +2,8 @@ import subprocess
 import time
 import os
 import re
-from core.brain_router import BrainRouter
 
 BASE = "/storage/emulated/0/BUJJI"
-brain_router = BrainRouter()
 AAC = os.path.join(BASE, "final_wake.aac")
 WAV = os.path.join(BASE, "final_wake_16k.wav")
 SCAN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scan_bujji.py")
@@ -257,10 +255,6 @@ def handle_command(command):
         return
 
     command = normalize_command(command)
-
-    # 🧠 BUJJI BRAIN ROUTER
-    route = brain_router.route(command)
-    print("🧠 BRAIN ROUTE:", route)
 
     print("⚙️ COMMAND:", command)
 

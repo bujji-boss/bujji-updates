@@ -258,10 +258,6 @@ def handle_command(command):
 
     command = normalize_command(command)
 
-    # 🧠 BUJJI BRAIN ROUTER
-    route = brain_router.route(command)
-    print("🧠 BRAIN ROUTE:", route)
-
     print("⚙️ COMMAND:", command)
 
     if command in ["hello", "hi", "hey"]:
